@@ -17,7 +17,7 @@ Build and run docker image:
 
 `docker-compose up -d` or `docker-compose up -d --build` (to re-build image)
 
-Service (`<your_host>:<your_port>/api/v1.0/imgrecognize/`) will started with docker up. Some time will spend for segmentation model downloading at start up (onse per model since last image build)
+Service (`<your_host>:<your_port>/api/v1.0/imgrecognize/`) will started with docker up. Some time will spend for segmentation model downloading at start up (once per model since last image build)
 
 Post image any way you preffer, some thing like:
 
