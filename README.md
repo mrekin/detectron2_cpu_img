@@ -25,6 +25,17 @@ Post image any way you preffer, some thing like:
 
 -- get json as result
 
+*You can post more than one image in request, but procesing may take too much time and connection will close with time-out*
+
+## Docker-compose
+Some variables can be passed throw docker-compose.yml file
+```
+      - SEGMENTATION_MODEL=COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml
+      - FLASK_DEBUG=True
+      - FLASK_HOST=0.0.0.0
+      - FLASK_HPORT=5000
+```
+Find more segmentation models at `https://github.com/facebookresearch/detectron2/tree/master/configs/COCO-InstanceSegmentation`
 # Performance
 My HW instanse is
 * Xeon E3 1260L
