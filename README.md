@@ -33,8 +33,8 @@ My HW instanse is
 
 Software:
 * VM (Proxmox) with 6 cores (host) and 1.5Gb Ram
-** Ubuntu 20.04 inside VM
-** Docker 20.10.5
+* Ubuntu 20.04 inside VM
+* Docker 20.10.5
 ```
  time  `curl --request POST -F "file=@IMG_3448.JPG" 192.168.1.111:5000/api/v1.0/imgrecognize/ > /dev/null`
  
