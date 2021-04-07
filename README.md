@@ -57,3 +57,9 @@ real    0m10.698s
 user    0m0.009s
 sys     0m0.023s
 ```
+
+# Near future plans:
+* clean-up python code
+* add some variables for request (like `?noexif` or `?noobjects`)
+* add basic-auth for service
+* add posibility use not only segmentation models
