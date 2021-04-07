@@ -1,0 +1,17 @@
+version: '2'
+
+volumes:
+    d2test:
+services:
+  detectron2:
+    build: .
+    restart: always
+    volumes:
+      - d2test:/home/d2test
+    environment:
+      - SEGMENTATION_MODEL=COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml
+      - FLASK_DEBUG=True
+      - FLASK_HOST=0.0.0.0
+      - FLASK_HPORT=5000
+    ports:
+      - 5000:5000
