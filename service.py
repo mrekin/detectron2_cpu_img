@@ -5,7 +5,7 @@ assert torch.__version__.startswith("1.8")   # need to manually install torch 1.
 
 # import some common libraries
 import numpy as np
-import os, json, cv2, random, io
+import os, json, cv2, random, io , base64
 
 import detectron2
 # import some common detectron2 utilities
@@ -25,10 +25,10 @@ from PIL import Image
 from PIL.ExifTags import TAGS
 import piexif
 
-app = Flask(__name__)
-predictor = None
-segmodel = 'COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml'
 
+predictor = None
+#segmodel = 'COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml'
+segmodel = 'COCO-PanopticSegmentation/panoptic_fpn_R_50_1x.yaml'
 def _create_text_labels(classes, scores, class_names, is_crowd=None):
     """
     Args:
@@ -112,13 +112,39 @@ def analizeImg (image):
 
     metadata = MetadataCatalog.get("coco_2017_val")
     names = metadata.get("thing_classes", None)
+    segments =[]
+    if 'panoptic_seg' in outputs:
+        
+        meta = MetadataCatalog.get("coco_2017_val_panoptic_separated")
+        segments_info = outputs['panoptic_seg'][1]
+        for i in range(len(segments_info)):
+            c = segments_info[i]["category_id"]
+            #segments_info[i]["category_id"] = meta.thing_dataset_id_to_contiguous_id[c] if segments_info[i]["isthing"] else meta.stuff_dataset_id_to_contiguous_id[c]
+            if not segments_info[i]["isthing"]:
+                name = meta.stuff_classes[c]
+                segments.append(name)
+
+
     classes = outputs["instances"].pred_classes
     scores = outputs["instances"].scores
 
     label2 = _create_names_dict(classes,scores,names,None)
     print(label2)
 
-    return label2
+    return label2, segments, outputs
+
+def getSegmentetdImage(image:Image, outputs):
+    image = cv2.cvtColor(np.array(image), cv2.COLOR_BGR2RGB)
+   
+    v = Visualizer(image[:, :, ::-1], MetadataCatalog.get(predictor.cfg.DATASETS.TRAIN[0]), scale=1.2)
+    v = v.draw_instance_predictions(outputs["instances"].to("cpu"))
+    res_im = Image.fromarray(v.get_image())
+
+    rawBytes = io.BytesIO()
+    res_im.save(rawBytes, "JPEG")
+    rawBytes.seek(0)
+    img_base64 = base64.b64encode(rawBytes.read())
+    return str(img_base64)
 
 def getLabesShortList(labels:{}):
     res = list(dict.fromkeys([ e['name'] for e in labels ]))
@@ -138,6 +164,9 @@ def getExif(image:Image):
 
 def getExif2(image:Image):
     tags = {}
+    if 'exif' not in image.info:
+        return tags
+
     exif_dict = piexif.load(image.info["exif"])
     for ifd in ("0th", "Exif", "GPS", "1st"):
         for tag in exif_dict[ifd]:
@@ -169,30 +198,101 @@ def decodeXP(t):
 
 
 
+def rotate(img, args, exif):
+    delta = 0
+    angles = {
+        '1' : 0,
+        '2' : 0,
+        '3' : 180,
+        '4' : 180,
+        '5' : 90,
+        '6' : 90,
+        '7' : 270,
+        '8' : 270
+        }
+    if 'Orientation' in exif:
+        delta = angles[str(exif['Orientation'])]
+    img = img.rotate(-int(request.form['rotation'])-delta) 
+    return img
+
+
+
+
 #############################################################################
 ###                WebService methods                                     ###
 #############################################################################
+app = Flask(__name__, template_folder='html')
+app.config['JSON_SORT_KEYS'] = False
+
+def prepareArgs(args):
+    arg = 'autorotation'
+    if arg in args and args[arg] is not False:
+        reqArgs[arg] = True
+
+    arg = 'rotation'
+    if arg in args and args[arg] is not '0':
+        reqArgs[arg] = args[arg]
+
+    arg = 'exif'
+    if arg in args and args[arg] is not False:
+        reqArgs[arg] = True
+
+    arg = 'resimg'
+    if arg in args and args[arg] is not False:
+        reqArgs[arg] = True
+
+
+reqArgsDef = {
+    'autorotation': False,
+    'rotation': 0,
+    'exif' : False,
+    'resimg': False
+}
+
+reqArgs = reqArgsDef
+
+######################################################################
+###########  URLS
+######################################################################
+
 @app.route('/')
 def index():
-    return "Hello, World!"
+    return render_template('index.html')
+
+
 
 # 
 @app.route('/api/v1.0/imgrecognize/', methods=['POST'])
 def upload_file():
     resp ={}
-    if request.method =='POST':
+    if request.method == 'POST':
+        reqArgs = reqArgsDef
         print (request.files.keys)
         for fn in request.files:
             file = request.files[fn]
-            
+            prepareArgs(request.args)
+
             if file:
                 filename = secure_filename(file.filename)
                 resp[filename] = {}
                 img = Image.open(file)
-                resp[filename]['objects'] = analizeImg(img)
+
+                exif = {}
+                if reqArgs['exif'] is True or reqArgs['autorotation'] is True:
+                    exif = getExif2(img)
+                
+                
+                if reqArgs['rotation'] is not 0 or reqArgs['autorotation'] is True:
+                    img = rotate(img, reqArgs, exif)
+                
+                resp[filename]['objects'] , resp[filename]['segments'],  out = analizeImg(img)
                 resp[filename]['objectsShortList'] = getLabesShortList(resp[filename]['objects'])
-                resp[filename]['exif'] = getExif2(img)
-#               img = cv2.imdecode(img, cv2.IMREAD_COLOR)
+
+                if reqArgs['exif']:
+                    resp[filename]['exif'] = exif
+                if reqArgs['resimg']:
+                    resp[filename]['img_res'] = getSegmentetdImage(img, out)
+
                 
     return jsonify(resp)
 
@@ -219,3 +319,4 @@ if __name__ == '__main__':
     predictor =  preparePredictor()
     app.debug=True
     app.run(host='0.0.0.0',port=5000)
+  #  predictor =  preparePredictor()

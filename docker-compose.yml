@@ -1,4 +1,4 @@
-version: '2'
+﻿version:'2'
 
 volumes:
     d2test:
@@ -10,8 +10,9 @@ services:
       - d2test:/home/d2test
     environment:
       - SEGMENTATION_MODEL=COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml
+#      - SEGMENTATION_MODEL=COCO-PanopticSegmentation/panoptic_fpn_R_50_1x.yaml
       - FLASK_DEBUG=True
       - FLASK_HOST=0.0.0.0
-      - FLASK_HPORT=5000
+      - FLASK_PORT=5000
     ports:
       - 5000:5000
