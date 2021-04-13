@@ -216,6 +216,16 @@ def rotate(img, args, exif):
     return img
 
 
+def resize(img, size):
+    maxwh = max(img.width, img.height)
+    if maxwh <= size:
+        img = img
+    else:
+        max_ratio = size / maxwh
+        size = (int(img.width*max_ratio), int(img.height*max_ratio))
+        img = img.resize(size)
+    return img
+
 
 
 #############################################################################
@@ -225,6 +235,7 @@ app = Flask(__name__, template_folder='html')
 app.config['JSON_SORT_KEYS'] = False
 
 def prepareArgs(args):
+    reqArgs = reqArgsDef
     arg = 'autorotation'
     if arg in args and args[arg] is not False:
         reqArgs[arg] = True
@@ -241,15 +252,22 @@ def prepareArgs(args):
     if arg in args and args[arg] is not False:
         reqArgs[arg] = True
 
+    arg = 'resize'
+    if arg in args and args[arg] is not '0' and args[arg] is not '':
+        reqArgs[arg] = args[arg]
+    elif arg in args and args[arg] is '':
+        reqArgsDef[arg] = 1000
+    return reqArgs
 
 reqArgsDef = {
     'autorotation': False,
     'rotation': 0,
     'exif' : False,
-    'resimg': False
+    'resimg': False,
+    'resize' : 0
 }
 
-reqArgs = reqArgsDef
+
 
 ######################################################################
 ###########  URLS
@@ -266,11 +284,11 @@ def index():
 def upload_file():
     resp ={}
     if request.method == 'POST':
-        reqArgs = reqArgsDef
+        reqArgs = prepareArgs(request.args)
         print (request.files.keys)
         for fn in request.files:
             file = request.files[fn]
-            prepareArgs(request.args)
+            
 
             if file:
                 filename = secure_filename(file.filename)
@@ -284,6 +302,9 @@ def upload_file():
                 
                 if reqArgs['rotation'] is not 0 or reqArgs['autorotation'] is True:
                     img = rotate(img, reqArgs, exif)
+
+                if reqArgs['resize'] is not 0:
+                    img = resize(img, reqArgs['resize'])
                 
                 resp[filename]['objects'] , resp[filename]['segments'],  out = analizeImg(img)
                 resp[filename]['objectsShortList'] = getLabesShortList(resp[filename]['objects'])

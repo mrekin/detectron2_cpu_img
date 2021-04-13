@@ -37,6 +37,7 @@ Add request params to URL if needed:
 * _resimg_ - to return result image with objects marked as base64 string (False is default, any other value is eq True)
 * _autorotation_ - autorotate image using exif data (Orientation) (False is default, any other value is eq True)
 * _rotation=<value>_ - rotate to <value> degrees before analisys. Works with/without _autorotation_
+* _resize=<value>_ - resize to <value> px (max side of image) before analisys. If value not passed: 1000px is default.
 
 `curl --request POST -F "file=@IMG.JPG" localhost:5000/api/v1.0/imgrecognize/?exif=False&autorotation&rotation=90`
 
@@ -78,4 +79,4 @@ sys     0m0.023s
 *  _DONE:_ add some variables for request (like `?noexif` or `?noobjects`)
 * add basic-auth for service
 * _DONE_: add posibility use not only segmentation models
-* add possibility to resize image (__panoptic segmentation causes docker crash if input image too big__, may be to low RAM, so resize image is good point to solve this and increase recognition speed
+* _DONE_: add possibility to resize image (__panoptic segmentation causes docker crash if input image too big__, may be to low RAM, so resize image is good point to solve this and increase recognition speed
