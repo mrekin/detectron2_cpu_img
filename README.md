@@ -61,7 +61,9 @@ Software:
 * Ubuntu 20.04 inside VM
 * Docker 20.10.5
 
-Results highly depends on image resolution: less resolution - faster analisys (but recognition still good) 
+Results highly depends on image resolution: less resolution - faster analisys
+
+Instance segmentation:
 ```
  time  `curl --request POST -F "file=@IMG_3448.JPG" 192.168.1.111:5000/api/v1.0/imgrecognize/ > /dev/null`
  
