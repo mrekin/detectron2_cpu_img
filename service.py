@@ -212,7 +212,7 @@ def rotate(img, args, exif):
         }
     if 'Orientation' in exif:
         delta = angles[str(exif['Orientation'])]
-    img = img.rotate(-int(request.form['rotation'])-delta) 
+    img = img.rotate(-int(request.form['rotation'])-delta, expand=1) 
     return img
 
 
