@@ -24,6 +24,7 @@ from werkzeug.utils import secure_filename
 from PIL import Image
 from PIL.ExifTags import TAGS
 import piexif
+import logging, logging.handlers, sys
 
 
 predictor = None
@@ -85,19 +86,19 @@ def _create_names_dict(classes, scores, class_names, is_crowd=None):
 
 
 def preparePredictor():
-    print('Prepearing predictor...')
+    log.info('Prepearing predictor...')
     cfg = get_cfg()
     # add project-specific config (e.g., TensorMask) here if you're not running a model in detectron2's core library
     
-    print('Using model ' + segmodel)
-    print('You can find more models in model-zoo: https://github.com/facebookresearch/detectron2/tree/master/configs/COCO-InstanceSegmentation')
+    log.debug(' Using model ' + segmodel)
+    log.info('  You can find more models in model-zoo: https://github.com/facebookresearch/detectron2/tree/master/configs/COCO-InstanceSegmentation')
     cfg.merge_from_file(model_zoo.get_config_file(segmodel))
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5  # set threshold for this model
     # Find a model from detectron2's model zoo. You can use the https://dl.fbaipublicfiles... url as well
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(segmodel)
     cfg.MODEL.DEVICE='cpu'
     predictor = DefaultPredictor(cfg)
-    print('Predictor ready!')
+    log.info('Predictor ready!')
     return predictor
 
 
@@ -129,7 +130,7 @@ def analizeImg (image):
     scores = outputs["instances"].scores
 
     label2 = _create_names_dict(classes,scores,names,None)
-    print(label2)
+    log.debug('Labels: %s', label2)
 
     return label2, segments, outputs
 
@@ -199,6 +200,8 @@ def decodeXP(t):
 
 
 def rotate(img, args, exif):
+    log.debug('Rotation: %s', args['rotation'])
+
     delta = 0
     angles = {
         '1' : 0,
@@ -212,17 +215,21 @@ def rotate(img, args, exif):
         }
     if 'Orientation' in exif:
         delta = angles[str(exif['Orientation'])]
-    img = img.rotate(-int(request.form['rotation'])-delta, expand=1) 
+    log.debug('Autorotation: %s', delta )
+    angle = -(int(args['rotation'])+delta)
+    log.debug('Total angle: %s: ', angle )
+    img = img.rotate(angle, expand=1) 
     return img
 
 
 def resize(img, size):
     maxwh = max(img.width, img.height)
     if maxwh <= size:
-        img = img
+        log.debug('Keeping original imaze size')
     else:
         max_ratio = size / maxwh
         size = (int(img.width*max_ratio), int(img.height*max_ratio))
+        log.debug('New size: %s', size)
         img = img.resize(size)
     return img
 
@@ -242,7 +249,7 @@ def prepareArgs(args):
 
     arg = 'rotation'
     if arg in args and args[arg] is not '0':
-        reqArgs[arg] = args[arg]
+        reqArgs[arg] = int(args[arg])
 
     arg = 'exif'
     if arg in args and args[arg] is not False:
@@ -257,6 +264,8 @@ def prepareArgs(args):
         reqArgs[arg] = args[arg]
     elif arg in args and args[arg] is '':
         reqArgsDef[arg] = 1000
+
+    log.debug('Request prepeared args: %s', reqArgs)
     return reqArgs
 
 reqArgsDef = {
@@ -283,13 +292,12 @@ def index():
 @app.route('/api/v1.0/imgrecognize/', methods=['POST'])
 def upload_file():
     resp ={}
+    log.debug('Request: %s',request)
     if request.method == 'POST':
         reqArgs = prepareArgs(request.args)
-        print (request.files.keys)
+        log.info(request.files.keys)
         for fn in request.files:
             file = request.files[fn]
-            
-
             if file:
                 filename = secure_filename(file.filename)
                 resp[filename] = {}
@@ -297,13 +305,16 @@ def upload_file():
 
                 exif = {}
                 if reqArgs['exif'] is True or reqArgs['autorotation'] is True:
+                    log.info('Extracting exif data..')
                     exif = getExif2(img)
                 
                 
                 if reqArgs['rotation'] is not 0 or reqArgs['autorotation'] is True:
+                    log.info('Rotating image..')
                     img = rotate(img, reqArgs, exif)
 
                 if reqArgs['resize'] is not 0:
+                    log.info('Resizing image..')
                     img = resize(img, reqArgs['resize'])
                 
                 resp[filename]['objects'] , resp[filename]['segments'],  out = analizeImg(img)
@@ -311,10 +322,12 @@ def upload_file():
 
                 if reqArgs['exif']:
                     resp[filename]['exif'] = exif
+		log.debug('Result: %s:', resp)
                 if reqArgs['resimg']:
                     resp[filename]['img_res'] = getSegmentetdImage(img, out)
 
-                
+
+    log.debug('Done')
     return jsonify(resp)
 
 
@@ -337,7 +350,33 @@ if __name__ == '__main__':
         fl_port = os.environ['FLASK_PORT']
     else:
         fl_port = 5000
+    if 'LOG_LVL' in os.environ:
+        srv_loglvl = os.environ['LOG_LVL']
+    else:
+        srv_loglvl = 'DEBUG'
+    
+    rfh = logging.handlers.RotatingFileHandler(
+        filename='log/service.log', 
+        mode='a',
+        maxBytes=5*1024*1024,
+        backupCount=3,
+        encoding='utf-8',
+        delay=0
+    )
+
+    logging.basicConfig( 
+        format="[%(asctime)s] %(levelname)-8s [%(thread)d.%(name)s.%(funcName)s:%(lineno)d] %(message)s",
+        datefmt="%d-%m-%Y %H:%M:%S",
+        handlers=[
+                rfh
+                ]
+        )
+    log = logging.getLogger("SERVICE")
+    log.setLevel(srv_loglvl)
+    log.addHandler(logging.StreamHandler(sys.stdout))
+
+    log.info('Starting service:\n  HOST: %s, PORT: %s, MODEL: %s',fl_host,fl_port,segmodel)
     predictor =  preparePredictor()
-    app.debug=True
+    app.debug=fl_debug
     app.run(host='0.0.0.0',port=5000)
   #  predictor =  preparePredictor()

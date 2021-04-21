@@ -1,19 +1,19 @@
 ﻿version: '2'
 
 volumes:
-    d2test:
+    d2test_log:
 services:
   detectron2:
     build: .
     restart: always
     volumes:
-      - d2test:/home/d2test
+      - d2test_log:/home/detec_srv/log
     environment:
 #      - SEGMENTATION_MODEL=COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml
-      - SEGMENTATION_MODEL=COCO-PanopticSegmentation/panoptic_fpn_R_50_3x.yaml
-#      - SEGMENTATION_MODEL=Cityscapes/mask_rcnn_R_50_FPN.yaml
-      - FLASK_DEBUG=True
+      - SEGMENTATION_MODEL=COCO-PanopticSegmentation/panoptic_fpn_R_50_1x.yaml
+      - FLASK_DEBUG=False
       - FLASK_HOST=0.0.0.0
       - FLASK_PORT=5000
+      - LOG_LVL=DEBUG
     ports:
       - 5000:5000

@@ -1,4 +1,4 @@
-﻿FROM debian:buster-slim
+FROM debian:buster-slim
 RUN apt-get update -y; 
 RUN apt-get upgrade -y;
 #RUN apt-get install -y python3.8;
@@ -29,14 +29,10 @@ RUN pip install -U cython requests opencv-python pyyaml==5.1
 RUN pip install -U pycocotools==2.0.2
 
 # Python flask service
-RUN mkdir /home/detec_test
-ADD service.py /home/detec_test
-RUN mkdir /home/detec_test/html
-COPY html/ /home/detec_test/html
-RUN mkdir /home/detec_test/static
-RUN mkdir /home/detec_test/static/js
-COPY static/js/ /home/detec_test/static/js
+RUN mkdir -p /home/detec_srv /home/detec_srv/html /home/detec_srv/log /home/detec_srv/static/js
+COPY service.py /home/detec_srv
+COPY html/ /home/detec_srv/html
+COPY static/js/ /home/detec_srv/static/js
 
-# CMD python3 /home/detec_test/service.py
-WORKDIR /home/detec_test/
+WORKDIR /home/detec_srv/
 CMD ["/usr/bin/python3","service.py"]
