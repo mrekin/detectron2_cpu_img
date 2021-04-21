@@ -322,10 +322,9 @@ def upload_file():
 
                 if reqArgs['exif']:
                     resp[filename]['exif'] = exif
-		log.debug('Result: %s:', resp)
+
                 if reqArgs['resimg']:
                     resp[filename]['img_res'] = getSegmentetdImage(img, out)
-
 
     log.debug('Done')
     return jsonify(resp)
