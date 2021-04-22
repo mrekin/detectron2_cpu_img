@@ -74,12 +74,15 @@ $( '#form' )
         success: function (data) {
             $("#result").text(JSON.stringify(data, null, 2));
             jQuery.each(data, function(i, val) {
-//                $("#" + i).append(document.createTextNode(" - " + val));
-                console.log("SUCCESS : ", i);
-                bytestring = val['img_res']
-				image = bytestring.split('\'')[1]
-				imagebox.attr('src' , 'data:image/jpeg;base64,'+image)
-                loadbox.attr('src' , '')
+                if (i == 'data') {
+                    for (var m in val) {
+                        console.log("SUCCESS : ", i);
+                        bytestring = val[m]['img_res']
+                        image = bytestring.split('\'')[1]
+                        imagebox.attr('src' , 'data:image/jpeg;base64,'+image)
+                        loadbox.attr('src' , '')                                            
+                    };
+                }
             });
             console.log("SUCCESS : ", data);
         },
