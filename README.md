@@ -78,7 +78,10 @@ sys     0m0.023s
 
 # Near future plans:
 * clean-up python code
-*  _DONE:_ add some variables for request (like `?noexif` or `?noobjects`)
 * add basic-auth for service
+* add main colors calculation (histogram?)
+* add posibility to use models not only from zoo 
+* add posibility to return result image with segments
+*  _DONE:_ add some variables for request (like `?noexif` or `?noobjects`)
 * _DONE_: add posibility use not only segmentation models
 * _DONE_: add possibility to resize image (__panoptic segmentation causes docker crash if input image too big__, may be to low RAM, so resize image is good point to solve this and increase recognition speed
