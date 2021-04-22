@@ -24,12 +24,13 @@ from werkzeug.utils import secure_filename
 from PIL import Image
 from PIL.ExifTags import TAGS
 import piexif
-import logging, logging.handlers, sys
+import logging, logging.handlers, sys, time
 
 
 predictor = None
 #segmodel = 'COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml'
 segmodel = 'COCO-PanopticSegmentation/panoptic_fpn_R_50_1x.yaml'
+
 def _create_text_labels(classes, scores, class_names, is_crowd=None):
     """
     Args:
@@ -291,10 +292,16 @@ def index():
 # 
 @app.route('/api/v1.0/imgrecognize/', methods=['POST'])
 def upload_file():
+    start_time = time.time()
+
     resp ={}
+    respInfo ={}
+    respInfo['model'] = segmodel
+
     log.debug('Request: %s',request)
     if request.method == 'POST':
         reqArgs = prepareArgs(request.args)
+        respInfo['args'] = reqArgs
         log.info(request.files.keys)
         for fn in request.files:
             file = request.files[fn]
@@ -325,9 +332,16 @@ def upload_file():
 
                 if reqArgs['resimg']:
                     resp[filename]['img_res'] = getSegmentetdImage(img, out)
-
+    totalTime = time.time() - start_time
+    respInfo['exectime'] = totalTime
+    log.debug('Exec time: %s sec', totalTime)
     log.debug('Done')
-    return jsonify(resp)
+    
+    result = {}
+    result['data'] = resp
+    result['_info'] = respInfo
+
+    return jsonify(result)
 
 
 
