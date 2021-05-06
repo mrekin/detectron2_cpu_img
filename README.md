@@ -42,7 +42,7 @@ Add request params to URL if needed:
 * _resize={value}_ - resize to <value> px (max side of image) before analisys. If value not passed: 1000px is default.
 * _geodata_ - to return reverse geodecoding using exif GPS data (False is default, any other value is eq True) by https://nominatim.openstreetmap.org
 * _lang={language_code}_ - used for _geodata_ and _translate_ ('en' is default)
-* _translate_ - to return objects and segments array, translated to target language (False is default, any other value is eq True)
+* _translate_ - to return objects and segments array (objectsAndSegments_{lang} object), translated to target language (False is default, any other value is eq True)
 
 `curl --request POST -F "file=@IMG.JPG" localhost:5000/api/v1.0/imgrecognize/?exif=False&autorotation&rotation=90`
 
