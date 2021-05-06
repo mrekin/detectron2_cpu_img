@@ -46,6 +46,13 @@ Add request params to URL if needed:
 
 `curl --request POST -F "file=@IMG.JPG" localhost:5000/api/v1.0/imgrecognize/?exif=False&autorotation&rotation=90`
 
+# Responce example
+<details>
+
+
+
+</details>
+
 ## Docker-compose
 Some variables can be passed throw docker-compose.yml file
 ```
