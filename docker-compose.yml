@@ -1,19 +1,20 @@
-﻿version: '2'
+﻿version: '3.7'
 
-volumes:
-    d2test_log:
 services:
   detectron2:
     build: .
     restart: always
     volumes:
-      - d2test_log:/home/detec_srv/log
+      - ./log:/home/detec_srv/log
+      - ./model_cache:/root/.torch/iopath_cache/detectron2/
     environment:
 #      - SEGMENTATION_MODEL=COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml
-      - SEGMENTATION_MODEL=COCO-PanopticSegmentation/panoptic_fpn_R_50_1x.yaml
+#      - SEGMENTATION_MODEL=COCO-PanopticSegmentation/panoptic_fpn_R_50_1x.yaml
+      - SEGMENTATION_MODEL=COCO-PanopticSegmentation/panoptic_fpn_R_50_3x.yaml
       - FLASK_DEBUG=False
       - FLASK_HOST=0.0.0.0
       - FLASK_PORT=5000
       - LOG_LVL=DEBUG
+      - SRV_LANG=en
     ports:
       - 5000:5000

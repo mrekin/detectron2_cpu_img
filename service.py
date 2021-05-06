@@ -21,15 +21,16 @@ setup_logger()
 from flask import Flask, jsonify, abort,render_template,request,redirect,url_for
 
 from werkzeug.utils import secure_filename
-from PIL import Image
+from PIL import Image , ImageColor
 from PIL.ExifTags import TAGS
 import piexif
-import logging, logging.handlers, sys, time
+import logging, logging.handlers, sys, time, requests
+from textblob import TextBlob
 
 
 predictor = None
-#segmodel = 'COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml'
-segmodel = 'COCO-PanopticSegmentation/panoptic_fpn_R_50_1x.yaml'
+segmodel = 'COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml'
+#segmodel = 'COCO-PanopticSegmentation/panoptic_fpn_R_50_1x.yaml'
 
 def _create_text_labels(classes, scores, class_names, is_crowd=None):
     """
@@ -108,8 +109,7 @@ def analizeImg (image):
     if predictor is None:
         predictor =  preparePredictor()
 
-#predictor(cv2.cvtColor(np.array(image), cv2.COLOR_BGR2RGB))
-    image = cv2.cvtColor(np.array(image), cv2.COLOR_BGR2RGB)
+    image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
     outputs = predictor(image)
 
     metadata = MetadataCatalog.get("coco_2017_val")
@@ -121,7 +121,6 @@ def analizeImg (image):
         segments_info = outputs['panoptic_seg'][1]
         for i in range(len(segments_info)):
             c = segments_info[i]["category_id"]
-            #segments_info[i]["category_id"] = meta.thing_dataset_id_to_contiguous_id[c] if segments_info[i]["isthing"] else meta.stuff_dataset_id_to_contiguous_id[c]
             if not segments_info[i]["isthing"]:
                 name = meta.stuff_classes[c]
                 segments.append(name)
@@ -136,7 +135,15 @@ def analizeImg (image):
     return label2, segments, outputs
 
 def getSegmentetdImage(image:Image, outputs):
-    image = cv2.cvtColor(np.array(image), cv2.COLOR_BGR2RGB)
+    """
+    Args:
+        image: 
+        outputs: segments and objects
+
+    Returns:
+        str: base64 decoded image
+    """
+    image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
    
     v = Visualizer(image[:, :, ::-1], MetadataCatalog.get(predictor.cfg.DATASETS.TRAIN[0]), scale=1.2)
     v = v.draw_instance_predictions(outputs["instances"].to("cpu"))
@@ -198,6 +205,48 @@ def decodeXP(t):
     b = bytes(t)
     return b[:-2].decode('utf-16-le')
 
+def decode_to_deg(value):
+    """
+    Helper function to convert the GPS coordinates stored in the EXIF to degress in float format
+    :param value:
+    :type value: exifread.utils.Ratio
+    :rtype: float
+    """
+    d = float(value[0][0]) / float(value[0][1])
+    m = float(value[1][0]) / float(value[1][1])
+    s = float(value[2][0]) / float(value[2][1])
+
+    return d + (m / 60.0) + (s / 3600.0)
+
+
+def reverse_geocoding(lat, lon, language='en'):
+    """
+    https://nominatim.org/release-docs/develop/api/Reverse/
+    """
+    log.info('Using reverse geocoding from https://nominatim.org/release-docs/develop/api/Reverse/')
+    res ={}
+    lat = decode_to_deg(lat)
+    lon = decode_to_deg(lon)
+
+    # zoom = building
+    zoom = 18
+    # Output types: https://nominatim.org/release-docs/develop/api/Output/
+    ftype = 'geocodejson'
+
+    url = 'https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format={format}&zoom={zoom}&addressdetails=1&accept-language={lang}'
+    url = url.format(lat=lat,lon=lon,zoom=zoom,lang=language, format=ftype)
+    response = requests.get(url)
+    if response.status_code == 200:
+        log.debug('Got 200')
+        res['code'] = 200
+    else:
+        log.debug('Not Found.')
+        res['code'] = response.status_code
+        
+    jres = json.loads(response.text)
+    res['data'] = jres
+
+    return res
 
 
 def rotate(img, args, exif):
@@ -234,6 +283,13 @@ def resize(img, size):
         img = img.resize(size)
     return img
 
+def getColors(img, num):
+    res = []
+
+    q = img.quantize(colors=num,method=0)
+    p = q.getpalette()[:num*3]
+    return res
+
 
 
 #############################################################################
@@ -244,27 +300,17 @@ app.config['JSON_SORT_KEYS'] = False
 
 def prepareArgs(args):
     reqArgs = reqArgsDef
-    arg = 'autorotation'
-    if arg in args and args[arg] is not False:
-        reqArgs[arg] = True
 
-    arg = 'rotation'
-    if arg in args and args[arg] is not '0':
-        reqArgs[arg] = int(args[arg])
+    for arg in reqArgs:
+        
+        if arg in args:
 
-    arg = 'exif'
-    if arg in args and args[arg] is not False:
-        reqArgs[arg] = True
-
-    arg = 'resimg'
-    if arg in args and args[arg] is not False:
-        reqArgs[arg] = True
-
-    arg = 'resize'
-    if arg in args and args[arg] is not '0' and args[arg] is not '':
-        reqArgs[arg] = args[arg]
-    elif arg in args and args[arg] is '':
-        reqArgsDef[arg] = 1000
+            if type(reqArgs[arg]) is int and args[arg] is not '0' and args[arg] is not '':
+                reqArgs[arg] = args[arg]
+            if type(reqArgs[arg]) is bool and args[arg] is not False:
+                reqArgs[arg] = True
+            if type(reqArgs[arg]) is str  and args[arg] is not '':
+                reqArgs[arg] = args[arg]
 
     log.debug('Request prepeared args: %s', reqArgs)
     return reqArgs
@@ -274,9 +320,21 @@ reqArgsDef = {
     'rotation': 0,
     'exif' : False,
     'resimg': False,
-    'resize' : 0
+    'resize' : 1000,
+    'geodata' : False,
+    'lang' : 'en',
+    'translate' : False,
+    'colors' : False
 }
 
+
+def getHelp():
+    h ={}
+    h['github url'] = 'https://github.com/mrekin/detectron2_cpu_img'
+    h['default args'] = reqArgsDef
+    h['model'] = segmodel
+    h['usage'] = 'curl --request POST -F "file=@IMG.JPG" localhost:5000/api/v1.0/imgrecognize/?exif=False&autorotation&rotation=90'
+    return h
 
 
 ######################################################################
@@ -290,7 +348,7 @@ def index():
 
 
 # 
-@app.route('/api/v1.0/imgrecognize/', methods=['POST'])
+@app.route('/api/v1.0/imgrecognize/', methods=['POST','GET'])
 def upload_file():
     start_time = time.time()
 
@@ -299,6 +357,11 @@ def upload_file():
     respInfo['model'] = segmodel
 
     log.debug('Request: %s',request)
+
+    if 'help' in request.args:
+        resp['help'] = getHelp()
+        return jsonify(resp)
+
     if request.method == 'POST':
         reqArgs = prepareArgs(request.args)
         respInfo['args'] = reqArgs
@@ -311,11 +374,10 @@ def upload_file():
                 img = Image.open(file)
 
                 exif = {}
-                if reqArgs['exif'] is True or reqArgs['autorotation'] is True:
+                if reqArgs['exif'] or reqArgs['autorotation'] or reqArgs['geodata']:
                     log.info('Extracting exif data..')
                     exif = getExif2(img)
-                
-                
+                       
                 if reqArgs['rotation'] is not 0 or reqArgs['autorotation'] is True:
                     log.info('Rotating image..')
                     img = rotate(img, reqArgs, exif)
@@ -323,19 +385,37 @@ def upload_file():
                 if reqArgs['resize'] is not 0:
                     log.info('Resizing image..')
                     img = resize(img, reqArgs['resize'])
+
+                if reqArgs['colors']:
+                    log.info('Getting colors..')
+                    img = getColors(img, 3)
+
+                if reqArgs['geodata'] is True and 'GPSLatitude' in exif:
+                    log.info('Getting geodata..')
+                    resp[filename]['geodata'] = reverse_geocoding(exif['GPSLatitude'],exif['GPSLongitude'], reqArgs['lang'])
                 
+                log.info('Analizing image..')
                 resp[filename]['objects'] , resp[filename]['segments'],  out = analizeImg(img)
                 resp[filename]['objectsShortList'] = getLabesShortList(resp[filename]['objects'])
+
+                if reqArgs['translate'] is True and reqArgs['lang'] is not 'en':
+                    log.info('Translating LabelsShortList and Segments..')
+                    blob = TextBlob(','.join(map(str, resp[filename]['objectsShortList'] + resp[filename]['segments'])))
+                    res = blob.translate(to=reqArgs['lang'])
+                    resp[filename]['objectsAndSegments_'+reqArgs['lang']] = res.split(', ')
 
                 if reqArgs['exif']:
                     resp[filename]['exif'] = exif
 
                 if reqArgs['resimg']:
                     resp[filename]['img_res'] = getSegmentetdImage(img, out)
+
+                
+
     totalTime = time.time() - start_time
     respInfo['exectime'] = totalTime
     log.debug('Exec time: %s sec', totalTime)
-    log.debug('Done')
+    log.debug(' Done')
     
     result = {}
     result['data'] = resp
@@ -344,11 +424,11 @@ def upload_file():
     return jsonify(result)
 
 
+    
 
 
 if __name__ == '__main__':
 
-  #  global predictor 
     if 'SEGMENTATION_MODEL' in os.environ:
         segmodel = os.environ['SEGMENTATION_MODEL']
     if 'FLASK_DEBUG' in os.environ:
@@ -367,6 +447,9 @@ if __name__ == '__main__':
         srv_loglvl = os.environ['LOG_LVL']
     else:
         srv_loglvl = 'DEBUG'
+    if 'SRV_LANG' in os.environ:
+        reqArgsDef['lang'] = os.environ['SRV_LANG']
+    
     
     rfh = logging.handlers.RotatingFileHandler(
         filename='log/service.log', 
@@ -392,4 +475,3 @@ if __name__ == '__main__':
     predictor =  preparePredictor()
     app.debug=fl_debug
     app.run(host='0.0.0.0',port=5000)
-  #  predictor =  preparePredictor()
