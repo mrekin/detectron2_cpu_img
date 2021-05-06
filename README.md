@@ -46,7 +46,7 @@ Add request params to URL if needed:
 
 `curl --request POST -F "file=@IMG.JPG" localhost:5000/api/v1.0/imgrecognize/?exif=False&autorotation&rotation=90`
 
-# Responce example
+### Responce example
 https://github.com/mrekin/detectron2_cpu_img/wiki/Responce
 
 ## Docker-compose
