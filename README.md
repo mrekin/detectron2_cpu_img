@@ -1,12 +1,13 @@
 # detectron2_cpu_img
 This is 'development' docker container:
-* detectron2 for CPU
+* detectron2 for CPU (https://github.com/facebookresearch/detectron2)
 * python3.7 and libs
 * torch 1.8.1
-* simple web service, which get image as input and returns detectron2 instanseSegmentation result and exif info (Python/Flask)
+* simple web service, which get image as input and returns detectron2 Segmentation result, exif info and etc (Python/Flask)
+* simple web page to test service
 
 # Note
-I don't find 'ready to use' solution for my task (detect objects on image) so I had to build it
+I don't find 'ready to use' solution for my task (detect objects/segments on image) so I had to build it
 
 I don't know much about CV/image recognition/python/ docker, so there may be errors and duck code. __Any help is welcome__.
 
@@ -17,7 +18,7 @@ Build and run docker image:
 
 `docker-compose up -d` or `docker-compose up -d --build` (to re-build image)
 
-Service (`<your_host>:<your_port>/api/v1.0/imgrecognize/`) will start with docker up. Some time will spend for segmentation model downloading at start up (once per model since last image build)
+Service (`<your_host>:<your_port>/api/v1.0/imgrecognize/`) will start with docker up. Some time (~40sec) will spend for segmentation model downloading at start up (once per model: volume for models cache configured in docker-compose file)
 
 Open in browser  `http://<your_host>:<your_port>/`
 Select image and push it. Get result.
@@ -33,13 +34,20 @@ Post image any way you preffer, some thing like:
 *You can post more than one image in request, but procesing may take too much time and connection will close with time-out*
 
 Add request params to URL if needed:
+* _help_ - to return help info (False is default, any other value is eq True). No any jobs will be done.
 * _exif_ - to return exif if exist (False is default, any other value is eq True)
 * _resimg_ - to return result image with objects marked as base64 string (False is default, any other value is eq True)
 * _autorotation_ - autorotate image using exif data (Orientation) (False is default, any other value is eq True)
-* _rotation=<value>_ - rotate to <value> degrees before analisys. Works with/without _autorotation_
-* _resize=<value>_ - resize to <value> px (max side of image) before analisys. If value not passed: 1000px is default.
+* _rotation={value}_ - rotate to <value> degrees before analisys. Works with/without _autorotation_
+* _resize={value}_ - resize to <value> px (max side of image) before analisys. If value not passed: 1000px is default.
+* _geodata_ - to return reverse geodecoding using exif GPS data (False is default, any other value is eq True) by https://nominatim.openstreetmap.org
+* _lang={language_code}_ - used for _geodata_ and _translate_ ('en' is default)
+* _translate_ - to return objects and segments array (`objectsAndSegments_{lang}` object), translated to target language (False is default, any other value is eq True)
 
 `curl --request POST -F "file=@IMG.JPG" localhost:5000/api/v1.0/imgrecognize/?exif=False&autorotation&rotation=90`
+
+### Responce example
+https://github.com/mrekin/detectron2_cpu_img/wiki/Responce
 
 ## Docker-compose
 Some variables can be passed throw docker-compose.yml file
@@ -77,11 +85,11 @@ sys     0m0.023s
 ```
 
 # Near future plans:
-* clean-up python code
+* _IN_PROGRESS_: clean-up python code
 * add basic-auth for service
 * add main colors calculation (histogram?)
 * add posibility to use models not only from zoo 
 * add posibility to return result image with segments
-*  _DONE:_ add some variables for request (like `?noexif` or `?noobjects`)
+* _DONE:_ add some variables for request (like `?noexif` or `?noobjects`)
 * _DONE_: add posibility use not only segmentation models
 * _DONE_: add possibility to resize image (__panoptic segmentation causes docker crash if input image too big__, may be to low RAM, so resize image is good point to solve this and increase recognition speed
