@@ -299,7 +299,7 @@ app = Flask(__name__, template_folder='html')
 app.config['JSON_SORT_KEYS'] = False
 
 def prepareArgs(args):
-    reqArgs = reqArgsDef
+    reqArgs = reqArgsDef.copy()
 
     for arg in reqArgs:
         
@@ -398,7 +398,7 @@ def upload_file():
                 resp[filename]['objects'] , resp[filename]['segments'],  out = analizeImg(img)
                 resp[filename]['objectsShortList'] = getLabesShortList(resp[filename]['objects'])
 
-                if reqArgs['translate'] is True and reqArgs['lang'] is not 'en':
+                if reqArgs['translate'] is True and reqArgs['lang'] is not 'en' and resp[filename]['objectsShortList'] + resp[filename]['segments']:
                     log.info('Translating LabelsShortList and Segments..')
                     blob = TextBlob(','.join(map(str, resp[filename]['objectsShortList'] + resp[filename]['segments'])))
                     res = blob.translate(to=reqArgs['lang'])
@@ -415,7 +415,7 @@ def upload_file():
     totalTime = time.time() - start_time
     respInfo['exectime'] = totalTime
     log.debug('Exec time: %s sec', totalTime)
-    log.debug(' Done')
+    log.debug('Done')
     
     result = {}
     result['data'] = resp
