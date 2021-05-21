@@ -26,6 +26,7 @@ from PIL.ExifTags import TAGS
 import piexif
 import logging, logging.handlers, sys, time, requests
 from textblob import TextBlob
+from collections import Counter
 
 
 predictor = None
@@ -103,6 +104,15 @@ def preparePredictor():
     log.info('Predictor ready!')
     return predictor
 
+def getModelMetadataObjNames():
+    metadata = MetadataCatalog.get("coco_2017_val")
+    names = metadata.get("thing_classes", None)
+    return names
+
+def getModelMetadataSegNames():
+    metadata = MetadataCatalog.get("coco_2017_val_panoptic_separated")
+    names = metadata.get("stuff_classes", None)
+    return names    
 
 def analizeImg (image):
     global predictor
@@ -112,8 +122,7 @@ def analizeImg (image):
     image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
     outputs = predictor(image)
 
-    metadata = MetadataCatalog.get("coco_2017_val")
-    names = metadata.get("thing_classes", None)
+    names = getModelMetadataObjNames()
     segments =[]
     if 'panoptic_seg' in outputs:
         
@@ -155,8 +164,17 @@ def getSegmentetdImage(image:Image, outputs):
     img_base64 = base64.b64encode(rawBytes.read())
     return str(img_base64)
 
-def getLabesShortList(labels:{}):
+def getLabesShortList(labels):
     res = list(dict.fromkeys([ e['name'] for e in labels ]))
+    return res
+
+def getLabesCounts(labels):
+    res = Counter()
+    for e in labels:
+        if 'name' in e:
+            res[e['name']] +=1
+        else:
+            res[e] +=1
     return res
 
 def getExif(image:Image):
@@ -254,6 +272,7 @@ def rotate(img, args, exif):
 
     delta = 0
     angles = {
+        '0' : 0,
         '1' : 0,
         '2' : 0,
         '3' : 180,
@@ -269,7 +288,7 @@ def rotate(img, args, exif):
     angle = -(int(args['rotation'])+delta)
     log.debug('Total angle: %s: ', angle )
     img = img.rotate(angle, expand=1) 
-    return img
+    return img, -delta, angle 
 
 
 def resize(img, size):
@@ -345,6 +364,12 @@ def getHelp():
 def index():
     return render_template('index.html')
 
+@app.route('/api/v1.0/objectNamesList/', methods=['GET'])
+def getObjectNamesList():
+    res={}
+    res['obj'] = getModelMetadataObjNames()
+    res['seg'] = getModelMetadataSegNames()
+    return jsonify(res)
 
 
 # 
@@ -377,10 +402,11 @@ def upload_file():
                 if reqArgs['exif'] or reqArgs['autorotation'] or reqArgs['geodata']:
                     log.info('Extracting exif data..')
                     exif = getExif2(img)
-                       
+                exif_rotation = 0    
+                total_rotation = 0   
                 if reqArgs['rotation'] is not 0 or reqArgs['autorotation'] is True:
                     log.info('Rotating image..')
-                    img = rotate(img, reqArgs, exif)
+                    img, exif_rotation, total_rotation = rotate(img, reqArgs, exif)
 
                 if reqArgs['resize'] is not 0:
                     log.info('Resizing image..')
@@ -394,15 +420,20 @@ def upload_file():
                     log.info('Getting geodata..')
                     resp[filename]['geodata'] = reverse_geocoding(exif['GPSLatitude'],exif['GPSLongitude'], reqArgs['lang'])
                 
-                log.info('Analizing image..')
+                log.info('Analyzing image..')
+                resp[filename]['rotation'] ={}
+                resp[filename]['rotation']['exif_rotation'] = exif_rotation
+                resp[filename]['rotation']['total_rotation'] = total_rotation
                 resp[filename]['objects'] , resp[filename]['segments'],  out = analizeImg(img)
                 resp[filename]['objectsShortList'] = getLabesShortList(resp[filename]['objects'])
+                resp[filename]['objectsCount'] = getLabesCounts(resp[filename]['objects']) + getLabesCounts(resp[filename]['segments']) 
 
                 if reqArgs['translate'] is True and reqArgs['lang'] is not 'en' and resp[filename]['objectsShortList'] + resp[filename]['segments']:
                     log.info('Translating LabelsShortList and Segments..')
                     blob = TextBlob(','.join(map(str, resp[filename]['objectsShortList'] + resp[filename]['segments'])))
                     res = blob.translate(to=reqArgs['lang'])
                     resp[filename]['objectsAndSegments_'+reqArgs['lang']] = res.split(', ')
+                    
 
                 if reqArgs['exif']:
                     resp[filename]['exif'] = exif
