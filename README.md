@@ -1,7 +1,7 @@
 # detectron2_cpu_img
 This is 'development' docker container:
 * detectron2 for CPU (https://github.com/facebookresearch/detectron2)
-* python3.7 and libs
+* python3.8 and libs
 * torch 1.8.1
 * simple web service, which get image as input and returns detectron2 Segmentation result, exif info and etc (Python/Flask)
 * simple web page to test service
@@ -43,7 +43,8 @@ Add request params to URL if needed:
 * _geodata_ - to return reverse geodecoding using exif GPS data (False is default, any other value is eq True) by https://nominatim.openstreetmap.org
 * _lang={language_code}_ - used for _geodata_ and _translate_ ('en' is default)
 * _translate_ - to return objects and segments array (`objectsAndSegments_{lang}` object), translated to target language (False is default, any other value is eq True)
-
+* _segmentation_ - in api/v1.0/imgrecognize image segmentation can be turned off.
+* _facerecognition_ - to return faces data, works if _segmetation_ find persons on image, or for any image if senmentation is off.
 `curl --request POST -F "file=@IMG.JPG" localhost:5000/api/v1.0/imgrecognize/?exif=False&autorotation&rotation=90`
 
 ### Responce example
