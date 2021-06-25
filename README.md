@@ -21,7 +21,7 @@ Build and run docker image:
 
 `docker-compose up -d` or `docker-compose up -d --build` (to re-build image)
 
-Service (`<your_host>:<your_port>/api/v1.0/imgrecognize/`) will start with docker up. Some time (~40sec) will spend for segmentation model downloading at start up (once per model: volume for models cache configured in docker-compose file)
+Service (`<your_host>:<your_port>/api/v1.1/imgrecognize/`) will start with docker up. Some time (~40sec) will spend for segmentation model downloading at start up (once per model: volume for models cache configured in docker-compose file)
 
 Open in browser  `http://<your_host>:<your_port>/`
 Select image and push it. Get result.
@@ -46,7 +46,7 @@ Add request params to URL if needed:
 * _geodata_ - to return reverse geodecoding using exif GPS data (False is default, any other value is eq True) by https://nominatim.openstreetmap.org
 * _lang={language_code}_ - used for _geodata_ and _translate_ ('en' is default)
 * _translate_ - to return objects and segments array (`objectsAndSegments_{lang}` object), translated to target language (False is default, any other value is eq True)
-* _segmentation_ - in api/v1.0/imgrecognize image segmentation can be turned off.
+* _segmentation_ - in api/v1.1/imgrecognize image segmentation can be turned off.
 * _facerecognition_ - to return faces data, works if _segmetation_ find persons on image, or for any image if senmentation is off.
 `curl --request POST -F "file=@IMG.JPG" localhost:5000/api/v1.0/imgrecognize/?exif=False&autorotation&rotation=90`
 
