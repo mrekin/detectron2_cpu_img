@@ -14,6 +14,8 @@ I don't know much about CV/image recognition/python/ docker, so there may be err
 
 I don't have CUDA GPU, so I build CPU based service which is more slower.
 
+Using this code to build search/catalog for my home photo archive.
+
 # Usage
 Build and run docker image:
 
