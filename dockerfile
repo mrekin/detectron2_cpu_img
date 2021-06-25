@@ -1,9 +1,10 @@
-FROM debian:buster-slim
+#FROM debian:buster-slim
+FROM python:3.8-slim
 RUN apt-get update -y; 
 RUN apt-get upgrade -y;
 
 # gcc compiler and opencv prerequisites
-RUN apt-get -y install nano git build-essential libglib2.0-0 libsm6 libxext6 libxrender-dev python3 python3-pip python3-opencv wget
+RUN apt-get -y install nano git build-essential libglib2.0-0 libsm6 libxext6 libxrender-dev python3 python3-pip python3-opencv wget cmake
 
 RUN python3 --version;
 RUN pip3 install --upgrade pip
@@ -25,6 +26,10 @@ RUN pip install -U cython \
 	numpy \
 ;
 
+RUN pip install face-recognition \
+				jsons \
+;
+
 # Python service
 RUN mkdir -p /home/detec_srv /home/detec_srv/html /home/detec_srv/log /home/detec_srv/static/js
 COPY service.py /home/detec_srv
@@ -32,4 +37,4 @@ COPY html/ /home/detec_srv/html
 COPY static/js/ /home/detec_srv/static/js
 
 WORKDIR /home/detec_srv/
-CMD ["/usr/bin/python3","service.py"]
+CMD ["python3","service.py"]

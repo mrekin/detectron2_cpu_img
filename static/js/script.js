@@ -65,7 +65,7 @@ $( '#form' )
     
     $.ajax( {
 //        url: '/api/v1.0/imgrecognize/?rotation='+rotation,
-        url: '/api/v1.0/imgrecognize/?exif&resimg&autorotation&lang=ru&translate&geodata&resize&rotation='+rotation,
+        url: '/api/v1.1/imgrecognize/?exif&resimg&autorotation&lang=ru&translate&geodata&segmentation&facerecognition&resize&rotation='+rotation,
         type: 'POST',
         enctype: 'multipart/form-data',
         data: data,
