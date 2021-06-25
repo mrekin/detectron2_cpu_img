@@ -1,6 +1,7 @@
 # detectron2_cpu_img
 This is 'development' docker container:
 * detectron2 for CPU (https://github.com/facebookresearch/detectron2)
+* face recognition module (https://pypi.org/project/face-recognition/)
 * python3.8 and libs
 * torch 1.8.1
 * simple web service, which get image as input and returns detectron2 Segmentation result, exif info and etc (Python/Flask)
