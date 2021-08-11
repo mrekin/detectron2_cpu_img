@@ -7,6 +7,8 @@ This is 'development' docker container:
 * simple web service, which get image as input and returns detectron2 Segmentation result, exif info and etc (Python/Flask)
 * simple web page to test service
 
+Simple web page with this docker in backend https://regim.online
+
 # Note
 I don't find 'ready to use' solution for my task (detect objects/segments on image) so I had to build it
 
